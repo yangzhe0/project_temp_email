@@ -12,6 +12,7 @@ git clone git@github.com:yangzhe0/project_temp_email.git
 
 - Telegram 命令说明改为只显示中文。
 - 长消息按 Telegram 的单条消息长度限制分段发送，避免上下文或邮件内容被截断。
+- 只有 HTML 的邮件先转成可读正文再推送；全局推送和地址绑定命中同一用户时只发送一次。
 
 ### 前端邮件 ID
 

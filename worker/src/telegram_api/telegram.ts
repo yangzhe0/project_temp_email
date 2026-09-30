@@ -9,6 +9,7 @@ import { TelegramSettings } from "./settings";
 import { sendTelegramAttachments } from "./tg_file_upload";
 import { bindTelegramAddress, deleteTelegramAddress, jwtListToAddressData, tgUserNewAddress, unbindTelegramAddress, unbindTelegramByAddress } from "./common";
 import { commonParseMail } from "../common";
+import { htmlToTextForAi } from "../email/ai_extract";
 import { resolveRawEmail } from "../gzip";
 import { UserFromGetMe } from "telegraf/types";
 import i18n from "../i18n";
@@ -448,7 +449,7 @@ const parseMail = async (
     }
     try {
         const parsedEmail = await commonParseMail(parsedEmailContext);
-        let parsedText = (parsedEmail?.text || parsedEmail?.html || "")
+        const parsedText = (parsedEmail?.text?.trim() || htmlToTextForAi(parsedEmail?.html || ""))
             .replace(/^[ \t]+/gm, "")
             .replace(/[ \t]+\n/g, "\n")
             .replace(/\n{3,}/g, "\n\n")
@@ -537,14 +538,18 @@ export async function sendMailToTelegram(
         }
     };
 
+    const sentUserIds = new Set<string>();
     if (globalPush) {
         const globalMsgs = i18n.getMessages(c.env.DEFAULT_LANG || 'zh');
         for (const pushId of settings.globalMailPushList) {
-            await buildAndSend(pushId, globalMsgs);
+            const targetId = String(pushId);
+            if (sentUserIds.has(targetId)) continue;
+            await buildAndSend(targetId, globalMsgs);
+            sentUserIds.add(targetId);
         }
     }
 
-    if (userId) {
+    if (userId && !sentUserIds.has(String(userId))) {
         const userMsgs = await getTgMessages(c, undefined, userId);
         await buildAndSend(userId, userMsgs);
     }

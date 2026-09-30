@@ -199,7 +199,7 @@ function decodeHtmlEntities(text: string): string {
     });
 }
 
-function htmlToTextForAi(html: string): string {
+export function htmlToTextForAi(html: string): string {
     return decodeHtmlEntities(
         html
             .replace(/<\s*(script|style|head|svg)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, ' ')
