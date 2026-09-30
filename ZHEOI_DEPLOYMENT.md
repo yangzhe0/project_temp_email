@@ -15,6 +15,7 @@ git clone git@github.com:yangzhe0/project_temp_email.git
 - 只有 HTML 的邮件先转成可读正文再推送；全局推送和地址绑定命中同一用户时只发送一次。
 - Telegram 通知保留 HTML 链接文字，不展示邮件页脚的追踪 URL；完整链接仍可在网页邮件里查看。
 - 登录、验证等主要 HTML 按钮会附在 Telegram 通知下方，可直接点击。
+- 其他正文链接也会作为按钮保留（最多 5 个）；页脚帮助、隐私、退订等链接不显示。
 
 ### 前端邮件 ID
 

@@ -15,6 +15,7 @@
 
 ### Bug Fixes
 
+- fix: |Telegram| Keep useful links from the message body as buttons, prioritizing sign-in and verification links while omitting footer and subscription links
 - fix: |Telegram| Add a clickable button for the main sign-in or verification link while keeping footer tracking links out of the message
 - fix: |Telegram| Omit long tracking URLs from HTML mail notifications while keeping link labels; simplify notification headers
 - fix: |Telegram| Convert HTML-only mail to readable text and avoid duplicate delivery when a user matches both global push and address binding

@@ -364,13 +364,13 @@ export function newTelegramBot(c: Context<HonoCustomType>, token: string): Teleg
         ).first<RawMailRow>();
         const raw = mailRow ? await resolveRawEmail(mailRow) : undefined;
         const mailId = mailRow?.id;
-        const { mail, actionLink } = raw
+        const { mail, contentLinks } = raw
             ? await parseMail(msgs, { rawEmail: raw }, queryAddress, mailRow?.metadata)
-            : { mail: msgs.TgNoMoreMailsMsg, actionLink: undefined };
+            : { mail: msgs.TgNoMoreMailsMsg, contentLinks: undefined };
         const settings = await c.env.KV.get<TelegramSettings>(CONSTANTS.TG_KV_SETTINGS_KEY, "json");
         const miniAppButtons = []
-        if (actionLink) {
-            miniAppButtons.push(Markup.button.url(actionLink.label, actionLink.url));
+        for (const link of contentLinks || []) {
+            miniAppButtons.push(Markup.button.url(link.label, link.url));
         }
         if (settings?.miniAppUrl && settings?.miniAppUrl?.length > 0 && mailId) {
             const url = new URL(settings.miniAppUrl);
@@ -440,24 +440,32 @@ export async function initTelegramBotCommands(c: Context<HonoCustomType>, bot: T
 }
 
 const ACTION_LINK_LABEL = /(?:sign[\s-]?in|log[\s-]?in|verify|verification|confirm|continue|reset password|activate|authenticate|登录|登入|验证|确认|继续|重置|激活)/i;
+const FOOTER_LINK_LABEL = /^(?:help(?: center)?|privacy(?: policy)?|terms(?: of service)?|unsubscribe|manage preferences|contact us|帮助(?:中心)?|隐私(?:政策)?|服务条款|退订|取消订阅|管理订阅)$/i;
+const MAX_TELEGRAM_LINKS = 5;
 
-const getMailActionLink = (html: string): { label: string; url: string } | undefined => {
+const getMailContentLinks = (html: string): { label: string; url: string }[] => {
+    const footerStart = html.search(/<footer\b|<(?:table|div|td)\b[^>]*(?:class|id)\s*=\s*(["'])[^"']*footer[^"']*\1/i);
+    const links: { label: string; url: string; priority: number }[] = [];
+    const seenUrls = new Set<string>();
     for (const anchor of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
+        if (footerStart >= 0 && (anchor.index || 0) >= footerStart) continue;
         const href = anchor[1].match(/\bhref\s*=\s*(["'])(.*?)\1/i)?.[2];
         if (!href) continue;
         const label = htmlToTextForAi(anchor[2], false).replace(/\s+/g, " ").trim();
-        if (!ACTION_LINK_LABEL.test(label)) continue;
+        if (!label || FOOTER_LINK_LABEL.test(label)) continue;
         const url = decodeHtmlEntities(href);
+        if (seenUrls.has(url)) continue;
         try {
             const parsed = new URL(url);
             if ((parsed.protocol === "https:" || parsed.protocol === "http:") && url.length <= 2048) {
-                return { label: label.slice(0, 50), url };
+                links.push({ label: label.slice(0, 50), url, priority: ACTION_LINK_LABEL.test(label) ? 0 : 1 });
+                seenUrls.add(url);
             }
         } catch {
             // Ignore malformed links in untrusted email HTML.
         }
     }
-    return undefined;
+    return links.sort((a, b) => a.priority - b.priority).slice(0, MAX_TELEGRAM_LINKS);
 };
 
 const parseMail = async (
@@ -478,7 +486,7 @@ const parseMail = async (
             .trim();
         return {
             isHtml: false,
-            actionLink: getMailActionLink(parsedEmail?.html || ""),
+            contentLinks: getMailContentLinks(parsedEmail?.html || ""),
             mail: formatAiExtractForTelegram(msgs, aiExtract)
                 + `发件：${parsedEmail?.sender || msgs.TgNoSenderMsg}\n`
                 + `收件：${address}\n`
@@ -535,14 +543,14 @@ export async function sendMailToTelegram(
     const bot = newTelegramBot(c, c.env.TELEGRAM_BOT_TOKEN);
 
     const buildAndSend = async (targetUserId: string, msgs: LocaleMessages) => {
-        const { mail, actionLink } = await parseMail(
+        const { mail, contentLinks } = await parseMail(
             msgs, parsedEmailContext, address, aiExtract
         );
         if (!mail) return;
         const attachments = parsedEmailContext.parsedEmail?.attachments || [];
         const buttons = [];
-        if (actionLink) {
-            buttons.push(Markup.button.url(actionLink.label, actionLink.url));
+        for (const link of contentLinks || []) {
+            buttons.push(Markup.button.url(link.label, link.url));
         }
         if (settings?.miniAppUrl && mailId) {
             const url = new URL(settings.miniAppUrl);
