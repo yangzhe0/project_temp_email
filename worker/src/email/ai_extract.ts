@@ -199,12 +199,13 @@ function decodeHtmlEntities(text: string): string {
     });
 }
 
-export function htmlToTextForAi(html: string): string {
+export function htmlToTextForAi(html: string, includeLinkUrls = true): string {
     return decodeHtmlEntities(
         html
             .replace(/<\s*(script|style|head|svg)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, ' ')
             .replace(/<!--[\s\S]*?-->/g, ' ')
-            .replace(/<a\b[^>]*\bhref=(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi, ' $3 $2 ')
+            .replace(/<a\b[^>]*\bhref=(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi,
+                (_match, _quote, url, label) => includeLinkUrls ? ` ${label} ${url} ` : ` ${label} `)
             .replace(/<\s*br\s*\/?>/gi, '\n')
             .replace(/<\/\s*(p|div|tr|td|th|li|table|section|article|header|footer|h[1-6])\s*>/gi, '\n')
             .replace(/<[^>]+>/g, ' ')

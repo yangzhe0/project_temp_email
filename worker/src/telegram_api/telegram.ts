@@ -364,9 +364,8 @@ export function newTelegramBot(c: Context<HonoCustomType>, token: string): Teleg
         ).first<RawMailRow>();
         const raw = mailRow ? await resolveRawEmail(mailRow) : undefined;
         const mailId = mailRow?.id;
-        const created_at = mailRow?.created_at;
         const { mail } = raw
-            ? await parseMail(msgs, { rawEmail: raw }, queryAddress, created_at, mailRow?.metadata)
+            ? await parseMail(msgs, { rawEmail: raw }, queryAddress, mailRow?.metadata)
             : { mail: msgs.TgNoMoreMailsMsg };
         const settings = await c.env.KV.get<TelegramSettings>(CONSTANTS.TG_KV_SETTINGS_KEY, "json");
         const miniAppButtons = []
@@ -441,7 +440,6 @@ const parseMail = async (
     msgs: LocaleMessages,
     parsedEmailContext: ParsedEmailContext,
     address: string,
-    created_at: string | undefined | null,
     aiExtract?: ExtractResult | string | null
 ) => {
     if (!parsedEmailContext.rawEmail) {
@@ -449,7 +447,7 @@ const parseMail = async (
     }
     try {
         const parsedEmail = await commonParseMail(parsedEmailContext);
-        const parsedText = (parsedEmail?.text?.trim() || htmlToTextForAi(parsedEmail?.html || ""))
+        const parsedText = (parsedEmail?.text?.trim() || htmlToTextForAi(parsedEmail?.html || "", false))
             .replace(/^[ \t]+/gm, "")
             .replace(/[ \t]+\n/g, "\n")
             .replace(/\n{3,}/g, "\n\n")
@@ -457,11 +455,10 @@ const parseMail = async (
         return {
             isHtml: false,
             mail: formatAiExtractForTelegram(msgs, aiExtract)
-                + `From: ${parsedEmail?.sender || msgs.TgNoSenderMsg}\n`
-                + `To: ${address}\n`
-                + (created_at ? `Date: ${created_at}\n` : "")
-                + `Subject: ${parsedEmail?.subject}\n`
-                + `Content:\n${parsedText || msgs.TgParseFailedViewInAppMsg}`
+                + `发件：${parsedEmail?.sender || msgs.TgNoSenderMsg}\n`
+                + `收件：${address}\n`
+                + `主题：${parsedEmail?.subject || ""}\n\n`
+                + `${parsedText || msgs.TgParseFailedViewInAppMsg}`
         };
     } catch (e) {
         return {
@@ -514,7 +511,7 @@ export async function sendMailToTelegram(
 
     const buildAndSend = async (targetUserId: string, msgs: LocaleMessages) => {
         const { mail } = await parseMail(
-            msgs, parsedEmailContext, address, new Date().toUTCString(), aiExtract
+            msgs, parsedEmailContext, address, aiExtract
         );
         if (!mail) return;
         const attachments = parsedEmailContext.parsedEmail?.attachments || [];
