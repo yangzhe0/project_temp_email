@@ -168,7 +168,7 @@ async function saveExtractMetadata(
     }
 }
 
-function decodeHtmlEntities(text: string): string {
+export function decodeHtmlEntities(text: string): string {
     const entities: Record<string, string> = {
         amp: '&',
         lt: '<',

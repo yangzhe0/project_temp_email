@@ -9,7 +9,7 @@ import { TelegramSettings } from "./settings";
 import { sendTelegramAttachments } from "./tg_file_upload";
 import { bindTelegramAddress, deleteTelegramAddress, jwtListToAddressData, tgUserNewAddress, unbindTelegramAddress, unbindTelegramByAddress } from "./common";
 import { commonParseMail } from "../common";
-import { htmlToTextForAi } from "../email/ai_extract";
+import { decodeHtmlEntities, htmlToTextForAi } from "../email/ai_extract";
 import { resolveRawEmail } from "../gzip";
 import { UserFromGetMe } from "telegraf/types";
 import i18n from "../i18n";
@@ -364,11 +364,14 @@ export function newTelegramBot(c: Context<HonoCustomType>, token: string): Teleg
         ).first<RawMailRow>();
         const raw = mailRow ? await resolveRawEmail(mailRow) : undefined;
         const mailId = mailRow?.id;
-        const { mail } = raw
+        const { mail, actionLink } = raw
             ? await parseMail(msgs, { rawEmail: raw }, queryAddress, mailRow?.metadata)
-            : { mail: msgs.TgNoMoreMailsMsg };
+            : { mail: msgs.TgNoMoreMailsMsg, actionLink: undefined };
         const settings = await c.env.KV.get<TelegramSettings>(CONSTANTS.TG_KV_SETTINGS_KEY, "json");
         const miniAppButtons = []
+        if (actionLink) {
+            miniAppButtons.push(Markup.button.url(actionLink.label, actionLink.url));
+        }
         if (settings?.miniAppUrl && settings?.miniAppUrl?.length > 0 && mailId) {
             const url = new URL(settings.miniAppUrl);
             url.pathname = "/telegram_mail"
@@ -436,6 +439,27 @@ export async function initTelegramBotCommands(c: Context<HonoCustomType>, bot: T
     await bot.telegram.setMyCommands(getTelegramCommands(c));
 }
 
+const ACTION_LINK_LABEL = /(?:sign[\s-]?in|log[\s-]?in|verify|verification|confirm|continue|reset password|activate|authenticate|登录|登入|验证|确认|继续|重置|激活)/i;
+
+const getMailActionLink = (html: string): { label: string; url: string } | undefined => {
+    for (const anchor of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
+        const href = anchor[1].match(/\bhref\s*=\s*(["'])(.*?)\1/i)?.[2];
+        if (!href) continue;
+        const label = htmlToTextForAi(anchor[2], false).replace(/\s+/g, " ").trim();
+        if (!ACTION_LINK_LABEL.test(label)) continue;
+        const url = decodeHtmlEntities(href);
+        try {
+            const parsed = new URL(url);
+            if ((parsed.protocol === "https:" || parsed.protocol === "http:") && url.length <= 2048) {
+                return { label: label.slice(0, 50), url };
+            }
+        } catch {
+            // Ignore malformed links in untrusted email HTML.
+        }
+    }
+    return undefined;
+};
+
 const parseMail = async (
     msgs: LocaleMessages,
     parsedEmailContext: ParsedEmailContext,
@@ -454,6 +478,7 @@ const parseMail = async (
             .trim();
         return {
             isHtml: false,
+            actionLink: getMailActionLink(parsedEmail?.html || ""),
             mail: formatAiExtractForTelegram(msgs, aiExtract)
                 + `发件：${parsedEmail?.sender || msgs.TgNoSenderMsg}\n`
                 + `收件：${address}\n`
@@ -510,12 +535,15 @@ export async function sendMailToTelegram(
     const bot = newTelegramBot(c, c.env.TELEGRAM_BOT_TOKEN);
 
     const buildAndSend = async (targetUserId: string, msgs: LocaleMessages) => {
-        const { mail } = await parseMail(
+        const { mail, actionLink } = await parseMail(
             msgs, parsedEmailContext, address, aiExtract
         );
         if (!mail) return;
         const attachments = parsedEmailContext.parsedEmail?.attachments || [];
         const buttons = [];
+        if (actionLink) {
+            buttons.push(Markup.button.url(actionLink.label, actionLink.url));
+        }
         if (settings?.miniAppUrl && mailId) {
             const url = new URL(settings.miniAppUrl);
             url.pathname = "/telegram_mail"
