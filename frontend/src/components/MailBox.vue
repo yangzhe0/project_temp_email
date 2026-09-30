@@ -102,6 +102,10 @@ const data = computed(() => {
   });
 })
 
+const displayMailId = (row) => count.value
+  - (page.value - 1) * pageSize.value
+  - rawData.value.findIndex(mail => mail.id === row.id)
+
 const openMail = (mail) => {
   curMail.value = mail
   if (mail?.is_unread !== 1 || !props.enableMailReadStatus) return
@@ -216,9 +220,7 @@ const refresh = async () => {
       item.checked = false;
       return await processItem(item);
     }));
-    if (totalCount > 0) {
-      count.value = totalCount;
-    }
+    count.value = totalCount ?? 0;
     curMail.value = null;
     if (!isMobile.value && !mailListView.value && data.value.length > 0) {
       curMail.value = data.value[0];
@@ -427,7 +429,7 @@ onBeforeUnmount(() => {
         <template #1>
           <div style="overflow: auto; min-height: 60vh; max-height: 100vh;">
             <n-list hoverable clickable>
-              <n-list-item v-for="(row, mailIndex) in data" v-bind:key="row.id" @click="() => clickRow(row)"
+              <n-list-item v-for="row in data" v-bind:key="row.id" @click="() => clickRow(row)"
                 :class="[mailItemClass(row), { 'mail-list-unread': enableMailReadStatus && row.is_unread === 1 }]">
                 <template #prefix v-if="multiActionMode">
                   <n-checkbox v-model:checked="row.checked" />
@@ -435,7 +437,7 @@ onBeforeUnmount(() => {
                 <n-thing :title="row.subject">
                   <template #description>
                     <n-tag type="info">
-                      ID: {{ mailIndex + 1 }}
+                      ID: {{ displayMailId(row) }}
                     </n-tag>
                     <n-tag type="info">
                       {{ utcToLocalDate(row.created_at, useUTCDate) }}
@@ -506,7 +508,7 @@ onBeforeUnmount(() => {
       </n-split>
       <div v-else class="mail-list-scroll">
         <n-list hoverable clickable>
-          <n-list-item v-for="(row, mailIndex) in data" v-bind:key="row.id" @click="() => clickRow(row)"
+          <n-list-item v-for="row in data" v-bind:key="row.id" @click="() => clickRow(row)"
             :class="[mailItemClass(row), { 'mail-list-unread': enableMailReadStatus && row.is_unread === 1 }]">
             <template #prefix v-if="multiActionMode">
               <n-checkbox v-model:checked="row.checked" />
@@ -520,7 +522,7 @@ onBeforeUnmount(() => {
               <template #description>
                 <div class="mail-list-meta">
                   <n-tag type="info">
-                    ID: {{ mailIndex + 1 }}
+                    ID: {{ displayMailId(row) }}
                   </n-tag>
                   <n-tag type="info">
                     {{ utcToLocalDate(row.created_at, useUTCDate) }}
@@ -568,12 +570,12 @@ onBeforeUnmount(() => {
       </div>
       <div style="overflow: auto; min-height: 60vh; max-height: 100vh;">
         <n-list hoverable clickable>
-          <n-list-item v-for="(row, mailIndex) in data" v-bind:key="row.id" @click="() => clickRow(row)"
+          <n-list-item v-for="row in data" v-bind:key="row.id" @click="() => clickRow(row)"
             :class="{ 'mail-list-unread': enableMailReadStatus && row.is_unread === 1 }">
             <n-thing :title="row.subject">
               <template #description>
                 <n-tag type="info">
-                  ID: {{ mailIndex + 1 }}
+                  ID: {{ displayMailId(row) }}
                 </n-tag>
                 <n-tag type="info">
                   {{ utcToLocalDate(row.created_at, useUTCDate) }}

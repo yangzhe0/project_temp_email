@@ -16,6 +16,7 @@
 
 ### Bug Fixes
 
+- fix: |Mail list| Sort by received time newest first and number messages from the oldest, with consistent numbering across pages and filters
 - fix: |Telegram| Remove invisible padding characters from mail previews and send only one truncated notification for long messages
 - fix: |Address management| Show consecutive creation-order numbers after deletions while retaining database IDs for internal operations
 - fix: |Telegram| Show up to three message-body link buttons, prioritizing sign-in and verification links
