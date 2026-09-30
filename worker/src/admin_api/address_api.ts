@@ -17,8 +17,9 @@ const listAddresses = async (c: Context<HonoCustomType>) => {
         'mail_count': 'mail_count',
         'send_count': 'send_count',
     };
-    const sortColumn = Object.hasOwn(allowedSortColumns, sort_by) ? allowedSortColumns[sort_by] : 'a.display_id';
-    const sortDirection = sort_order === 'descend' ? 'desc' : 'asc';
+    const hasSortColumn = Object.hasOwn(allowedSortColumns, sort_by);
+    const sortColumn = hasSortColumn ? allowedSortColumns[sort_by] : 'a.display_id';
+    const sortDirection = sort_order === 'descend' || (!hasSortColumn && sort_order !== 'ascend') ? 'desc' : 'asc';
     const orderBy = `${sortColumn} ${sortDirection}, a.id asc`;
     // Display IDs are ranks across all addresses, independent of filtering and pagination.
     const rankedAddresses = `FROM (`

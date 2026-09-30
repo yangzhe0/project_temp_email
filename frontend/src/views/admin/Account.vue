@@ -39,8 +39,8 @@ const selectedCount = computed(() => checkedRowKeys.value.length);
 const showMultiActionBar = computed(() => checkedRowKeys.value.length > 0);
 
 const addressQuery = ref("")
-const sortBy = ref("")
-const sortOrder = ref("")
+const sortBy = ref("display_id")
+const sortOrder = ref("descend")
 
 const data = ref([])
 const count = ref(0)
@@ -246,8 +246,8 @@ const searchData = () => {
 }
 
 const handleSorterChange = (sorter) => {
-    sortBy.value = sorter.columnKey || "";
-    sortOrder.value = sorter.order || "";
+    sortBy.value = sorter.columnKey || "display_id";
+    sortOrder.value = sorter.order || "descend";
     if (page.value === 1) {
         fetchData();
     } else {

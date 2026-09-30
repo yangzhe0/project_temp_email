@@ -681,14 +681,14 @@ export const handleListQuery = async (
     if (offset == null || offset == undefined || offset < 0) {
         return c.text(msgs.InvalidOffsetMsg, 400)
     }
-    const orderClause = orderBy || 'created_at desc, id desc';
+    const orderClause = orderBy || 'id desc';
     const resultsQuery = `${query} order by ${orderClause} limit ? offset ?`;
     const { results } = await c.env.DB.prepare(resultsQuery).bind(
         ...params, limit, offset
     ).all();
-    const count = await c.env.DB.prepare(
+    const count = offset == 0 ? await c.env.DB.prepare(
         countQuery
-    ).bind(...params).first("count");
+    ).bind(...params).first("count") : 0;
     if (hiddenFields.length === 0) {
         return c.json({ results, count });
     }
