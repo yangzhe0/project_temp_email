@@ -261,9 +261,9 @@ const columns = computed(() => [
     },
     {
         title: "ID",
-        key: "id",
+        key: "display_id",
         sorter: true,
-        sortOrder: sortBy.value === 'id' ? sortOrder.value : false
+        sortOrder: sortBy.value === 'display_id' ? sortOrder.value : false
     },
     {
         title: t('emailAddress'),

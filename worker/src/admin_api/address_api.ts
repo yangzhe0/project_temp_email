@@ -9,6 +9,7 @@ const listAddresses = async (c: Context<HonoCustomType>) => {
     const { limit, offset, query, sort_by, sort_order } = c.req.query();
     const allowedSortColumns: Record<string, string> = {
         'id': 'a.id',
+        'display_id': 'a.display_id',
         'name': 'a.name',
         'created_at': 'a.created_at',
         'updated_at': 'a.updated_at',
@@ -16,22 +17,26 @@ const listAddresses = async (c: Context<HonoCustomType>) => {
         'mail_count': 'mail_count',
         'send_count': 'send_count',
     };
-    const sortColumn = Object.hasOwn(allowedSortColumns, sort_by) ? allowedSortColumns[sort_by] : 'a.id';
-    const sortDirection = sort_order === 'ascend' ? 'asc' : 'desc';
-    const orderBy = `${sortColumn} ${sortDirection}`;
+    const sortColumn = Object.hasOwn(allowedSortColumns, sort_by) ? allowedSortColumns[sort_by] : 'a.display_id';
+    const sortDirection = sort_order === 'descend' ? 'desc' : 'asc';
+    const orderBy = `${sortColumn} ${sortDirection}, a.id asc`;
+    // Display IDs are ranks across all addresses, independent of filtering and pagination.
+    const rankedAddresses = `FROM (`
+        + `SELECT address.*, ROW_NUMBER() OVER (ORDER BY created_at ASC, id ASC) AS display_id`
+        + ` FROM address) a`;
     if (query) {
         // D1 caps LIKE pattern length at 50 bytes; fall back to instr() for
         // longer queries to avoid "LIKE or GLOB pattern too complex" (#956).
         const useInstr = new TextEncoder().encode(query).length + 2 > 50;
-        const whereClause = useInstr ? `instr(name, ?) > 0` : `name like ?`;
+        const whereClause = useInstr ? `instr(a.name, ?) > 0` : `a.name like ?`;
         const param = useInstr ? query : `%${query}%`;
         return await handleListQuery(c,
             `SELECT a.*,`
             + ` (SELECT COUNT(*) FROM raw_mails WHERE address = a.name) AS mail_count,`
             + ` (SELECT COUNT(*) FROM sendbox WHERE address = a.name) AS send_count`
-            + ` FROM address a`
+            + ` ${rankedAddresses}`
             + ` where ${whereClause}`,
-            `SELECT count(*) as count FROM address where ${whereClause}`,
+            `SELECT count(*) as count FROM address a where ${whereClause}`,
             [param], limit, offset, orderBy, ['password']
         );
     }
@@ -39,7 +44,7 @@ const listAddresses = async (c: Context<HonoCustomType>) => {
         `SELECT a.*,`
         + ` (SELECT COUNT(*) FROM raw_mails WHERE address = a.name) AS mail_count,`
         + ` (SELECT COUNT(*) FROM sendbox WHERE address = a.name) AS send_count`
-        + ` FROM address a`,
+        + ` ${rankedAddresses}`,
         `SELECT count(*) as count FROM address`,
         [], limit, offset, orderBy, ['password']
     );
