@@ -441,7 +441,6 @@ export async function initTelegramBotCommands(c: Context<HonoCustomType>, bot: T
 
 const ACTION_LINK_LABEL = /(?:sign[\s-]?in|log[\s-]?in|verify|verification|confirm|continue|reset password|activate|authenticate|登录|登入|验证|确认|继续|重置|激活)/i;
 const FOOTER_LINK_LABEL = /^(?:help(?: center)?|privacy(?: policy)?|terms(?: of service)?|unsubscribe|manage preferences|contact us|帮助(?:中心)?|隐私(?:政策)?|服务条款|退订|取消订阅|管理订阅)$/i;
-const MAX_TELEGRAM_LINKS = 5;
 
 const getMailContentLinks = (html: string): { label: string; url: string }[] => {
     const footerStart = html.search(/<footer\b|<(?:table|div|td)\b[^>]*(?:class|id)\s*=\s*(["'])[^"']*footer[^"']*\1/i);
@@ -451,8 +450,10 @@ const getMailContentLinks = (html: string): { label: string; url: string }[] => 
         if (footerStart >= 0 && (anchor.index || 0) >= footerStart) continue;
         const href = anchor[1].match(/\bhref\s*=\s*(["'])(.*?)\1/i)?.[2];
         if (!href) continue;
-        const label = htmlToTextForAi(anchor[2], false).replace(/\s+/g, " ").trim();
-        if (!label || FOOTER_LINK_LABEL.test(label)) continue;
+        const label = htmlToTextForAi(anchor[2], false).replace(/\s+/g, " ").trim()
+            || decodeHtmlEntities(anchor[2].match(/<img\b[^>]*\balt\s*=\s*(["'])(.*?)\1/i)?.[2] || "")
+            || "打开链接";
+        if (FOOTER_LINK_LABEL.test(label) && (anchor.index || 0) > html.length * 0.6) continue;
         const url = decodeHtmlEntities(href);
         if (seenUrls.has(url)) continue;
         try {
@@ -465,7 +466,7 @@ const getMailContentLinks = (html: string): { label: string; url: string }[] => 
             // Ignore malformed links in untrusted email HTML.
         }
     }
-    return links.sort((a, b) => a.priority - b.priority).slice(0, MAX_TELEGRAM_LINKS);
+    return links.sort((a, b) => a.priority - b.priority);
 };
 
 const parseMail = async (

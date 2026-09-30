@@ -15,6 +15,7 @@
 
 ### Bug Fixes
 
+- fix: |Telegram| Remove the five-button limit for message links and only filter help, privacy, and unsubscribe links in footers
 - fix: |Telegram| Keep useful links from the message body as buttons, prioritizing sign-in and verification links while omitting footer and subscription links
 - fix: |Telegram| Add a clickable button for the main sign-in or verification link while keeping footer tracking links out of the message
 - fix: |Telegram| Omit long tracking URLs from HTML mail notifications while keeping link labels; simplify notification headers
