@@ -441,6 +441,7 @@ export async function initTelegramBotCommands(c: Context<HonoCustomType>, bot: T
 
 const ACTION_LINK_LABEL = /(?:sign[\s-]?in|log[\s-]?in|verify|verification|confirm|continue|reset password|activate|authenticate|登录|登入|验证|确认|继续|重置|激活)/i;
 const FOOTER_LINK_LABEL = /^(?:help(?: center)?|privacy(?: policy)?|terms(?: of service)?|unsubscribe|manage preferences|contact us|帮助(?:中心)?|隐私(?:政策)?|服务条款|退订|取消订阅|管理订阅)$/i;
+const MAX_TELEGRAM_CONTENT_LINKS = 3;
 
 const getMailContentLinks = (html: string): { label: string; url: string }[] => {
     const footerStart = html.search(/<footer\b|<(?:table|div|td)\b[^>]*(?:class|id)\s*=\s*(["'])[^"']*footer[^"']*\1/i);
@@ -466,7 +467,7 @@ const getMailContentLinks = (html: string): { label: string; url: string }[] => 
             // Ignore malformed links in untrusted email HTML.
         }
     }
-    return links.sort((a, b) => a.priority - b.priority);
+    return links.sort((a, b) => a.priority - b.priority).slice(0, MAX_TELEGRAM_CONTENT_LINKS);
 };
 
 const parseMail = async (
