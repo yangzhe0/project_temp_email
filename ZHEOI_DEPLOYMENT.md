@@ -10,6 +10,7 @@ git clone git@github.com:yangzhe0/project_temp_email.git
 
 ### Telegram 消息
 
+- `/web` 命令会发送打开 `https://m.zheoi.com` 的按钮。
 - Telegram 命令说明改为只显示中文。
 - 自动邮件通知先清理不可见填充字符；超长正文只发送一条截断预览，避免同一封邮件拆成多条。完整邮件可在网页查看。
 - 只有 HTML 的邮件先转成可读正文再推送；全局推送和地址绑定命中同一用户时只发送一次。

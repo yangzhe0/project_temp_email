@@ -67,6 +67,10 @@ const COMMANDS = [
         description: "查看邮件，/mails <邮箱地址>，不输入地址默认第一个"
     },
     {
+        command: "web",
+        description: "打开邮箱网页"
+    },
+    {
         command: "cleaninvalidaddress",
         description: "清理无效地址"
     },
@@ -180,6 +184,12 @@ export function newTelegramBot(c: Context<HonoCustomType>, token: string): Teleg
             + `${msgs.TgAvailableCommandsMsg}\n`
             + commands.map(cmd => `/${cmd.command}: ${cmd.description}`).join("\n")
         );
+    });
+
+    bot.command("web", async (ctx: TgContext) => {
+        return await ctx.reply("打开邮箱网页：", Markup.inlineKeyboard([
+            Markup.button.url("打开邮箱", "https://m.zheoi.com")
+        ]));
     });
 
     bot.command("new", async (ctx: TgContext) => {
