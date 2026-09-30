@@ -481,11 +481,9 @@ const parseMail = async (
     }
     try {
         const parsedEmail = await commonParseMail(parsedEmailContext);
-        const parsedText = (parsedEmail?.text?.trim() || htmlToTextForAi(parsedEmail?.html || "", false))
-            .replace(/^[ \t]+/gm, "")
-            .replace(/[ \t]+\n/g, "\n")
-            .replace(/\n{3,}/g, "\n\n")
-            .trim();
+        const parsedText = cleanTelegramBody(
+            parsedEmail?.text?.trim() || htmlToTextForAi(parsedEmail?.html || "", false)
+        );
         return {
             isHtml: false,
             contentLinks: getMailContentLinks(parsedEmail?.html || ""),
@@ -504,24 +502,26 @@ const parseMail = async (
 }
 
 const TELEGRAM_MESSAGE_CHUNK_SIZE = 4000;
+const TELEGRAM_PUSH_PREVIEW_SIZE = 1800;
 
-const splitTelegramMessage = (message: string): string[] => {
-    if (message.length <= TELEGRAM_MESSAGE_CHUNK_SIZE) {
-        return [message];
-    }
-    const chunks: string[] = [];
-    let remaining = message;
-    while (remaining.length > TELEGRAM_MESSAGE_CHUNK_SIZE) {
-        let cut = remaining.lastIndexOf("\n", TELEGRAM_MESSAGE_CHUNK_SIZE);
-        if (cut < Math.floor(TELEGRAM_MESSAGE_CHUNK_SIZE * 0.5)) {
-            cut = TELEGRAM_MESSAGE_CHUNK_SIZE;
-        }
-        chunks.push(remaining.slice(0, cut));
-        remaining = remaining.slice(cut).replace(/^\n+/, "");
-    }
-    if (remaining) chunks.push(remaining);
-    return chunks;
-}
+const cleanTelegramBody = (body: string): string => body
+    // Marketing emails often pad their plain-text preheader with invisible characters.
+    .replace(/\u034f/g, "")
+    .replace(/[\u00ad\u061c\u180e\u200b-\u200f\u2060-\u206f\ufeff]/g, "")
+    .replace(/[\u00a0\u2000-\u200a\u202f\u205f\u3000]/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/[ \t]*\n[ \t]*/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+const previewTelegramMessage = (message: string): string => {
+    if (message.length <= TELEGRAM_PUSH_PREVIEW_SIZE) return message;
+    const suffix = "\n\n…（内容过长，已截断）";
+    const limit = TELEGRAM_PUSH_PREVIEW_SIZE - suffix.length;
+    const newline = message.lastIndexOf("\n", limit);
+    const cut = newline >= limit / 2 ? newline : limit;
+    return message.slice(0, cut).trimEnd() + suffix;
+};
 
 
 export async function sendMailToTelegram(
@@ -560,12 +560,8 @@ export async function sendMailToTelegram(
             url.searchParams.set("mail_id", mailId);
             buttons.push(Markup.button.webApp(msgs.TgViewMailBtnMsg, url.toString()));
         }
-        const chunks = splitTelegramMessage(mail);
-        for (let index = 0; index < chunks.length; index++) {
-            await bot.telegram.sendMessage(targetUserId, chunks[index], {
-                ...(index === chunks.length - 1 ? Markup.inlineKeyboard([...buttons]) : {})
-            });
-        }
+        await bot.telegram.sendMessage(targetUserId, previewTelegramMessage(mail),
+            Markup.inlineKeyboard(buttons));
         // send attachments via native fetch (telegraf multipart upload is incompatible with CF Workers)
         if (getBooleanValue(c.env.ENABLE_TG_PUSH_ATTACHMENT) && attachments.length > 0) {
             const caption = `From: ${parsedEmailContext.parsedEmail?.sender || ""}\nSubject: ${parsedEmailContext.parsedEmail?.subject || ""}`;

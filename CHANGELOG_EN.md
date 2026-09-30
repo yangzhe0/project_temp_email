@@ -15,6 +15,7 @@
 
 ### Bug Fixes
 
+- fix: |Telegram| Remove invisible padding characters from mail previews and send only one truncated notification for long messages
 - fix: |Address management| Show consecutive creation-order numbers after deletions while retaining database IDs for internal operations
 - fix: |Telegram| Show up to three message-body link buttons, prioritizing sign-in and verification links
 - fix: |Telegram| Remove the five-button limit for message links and only filter help, privacy, and unsubscribe links in footers
